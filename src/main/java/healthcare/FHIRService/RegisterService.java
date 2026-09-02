@@ -2,17 +2,18 @@ package healthcare.FHIRService;
 
 
 
-	import org.springframework.beans.factory.annotation.Autowired;
-	import org.springframework.security.crypto.password.PasswordEncoder;
-	import org.springframework.stereotype.Service;
 
-	import healthcare.DTO.RegisterRequestDTO;
-	import healthcare.Entity.User;
-	import healthcare.Repository.RegisterRepo;
+import java.util.Optional;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.security.crypto.password.PasswordEncoder;
+import org.springframework.stereotype.Service;
+import healthcare.DTO.RegisterRequestDTO;
+import healthcare.Entity.User;
+import healthcare.Repository.RegisterRepo;
   
 
-	@Service
-	public class RegisterService {
+@Service
+public class RegisterService {
 
 	    @Autowired
 	    private RegisterRepo userRepository;
@@ -21,34 +22,26 @@ package healthcare.FHIRService;
 	    private PasswordEncoder passwordEncoder;
 
 	  
-
-
 	    // REGISTER
-	    public User register(RegisterRequestDTO request) {
+	    public String register(RegisterRequestDTO request) {
 
-	        if (userRepository.existsByUsername(
-	                request.getUsername())) {
-
-	            throw new RuntimeException(
-	                    "Username already exists");
-	        }
-
-	        User user = new User();
-
-	        user.setUsername(
-	                request.getUsername()
-	        );
-
-	        user.setPassword(
-	                passwordEncoder.encode(
-	                        request.getPassword()
-	                )
-	        );
-
-	        user.setRole(
-	                request.getRole()
-	        );
-
-	        return userRepository.save(user);
+	    	Optional<User>data=userRepository.findByUsername(request.getUsername());
+	       
+	       if(data.isPresent()) {
+	    	   
+	    	   throw new RuntimeException("user found");
+	       }
+	       
+	     String Hash =passwordEncoder.encode(request.getPassword());
+	       
+	       User user=new User();
+	       
+	       user.setUsername(request.getUsername());
+	       user.setPassword(Hash);
+	       user.setRole(request.getRole());
+	  
+	       userRepository.save(user);
+	       
+	       return "Registration successfull";
 	    }
 }
