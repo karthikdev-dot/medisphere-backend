@@ -45,7 +45,12 @@ public class JWTFilter extends OncePerRequestFilter {
         // =========================================
 
         if (path.equals("/api/reg") ||
-            path.equals("/auth/login")) {
+            path.equals("/auth/login") ||
+            path.startsWith("/api/vitals/")||
+            path.startsWith("/api/medications/") ||
+            path.startsWith("/api/patients/")||
+            path.startsWith("/api/labrecords/")||
+            path.startsWith("/api/auditlog")){
 
             System.out.println("Public endpoint - JWT skipped");
 

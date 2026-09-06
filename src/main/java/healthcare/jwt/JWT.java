@@ -15,33 +15,16 @@ import io.jsonwebtoken.SignatureAlgorithm;
 @Component
 public class JWT {
 
-    // =====================================================
-    // SECRET KEY
-    // =====================================================
+   
 
     private final String secret =
             "hellomynameiskarthiktodayimdoinghealthcarefhir123456789";
 
-
-    // =====================================================
-    // SIGNATURE ALGORITHM
-    // =====================================================
-
     private final SignatureAlgorithm signatureAlgorithm =
             SignatureAlgorithm.HS256;
 
-
-    // =====================================================
-    // CONVERT SECRET STRING TO BYTES
-    // =====================================================
-
     private final byte[] secretBytes =
             secret.getBytes(StandardCharsets.UTF_8);
-
-
-    // =====================================================
-    // CREATE SECRET KEY
-    // =====================================================
 
     private final SecretKey key =
             new SecretKeySpec(
@@ -50,23 +33,11 @@ public class JWT {
             );
 
 
-    // =====================================================
-    // TOKEN EXPIRATION
-    // =====================================================
-
-    // Access token = 15 minutes
     private final Long accessTokenExpiration =
             15 * 60 * 1000L;
 
-
-    // Refresh token = 7 days
     private final Long refreshTokenExpiration =
             1000L * 60 * 60 * 24 * 7;
-
-
-    // =====================================================
-    // GENERATE ACCESS TOKEN
-    // =====================================================
 
     public String generateAccessToken(
             String username) {

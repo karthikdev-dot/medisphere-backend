@@ -7,4 +7,6 @@ import healthcare.Entity.Patient;
 @Repository
 public interface PatientRepo
         extends MongoRepository<Patient, String> {
+	
+	Patient findByFhirId(String fhirId);
 }

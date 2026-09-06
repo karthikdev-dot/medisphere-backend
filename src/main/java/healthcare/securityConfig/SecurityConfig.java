@@ -39,6 +39,23 @@ public class SecurityConfig {
                 .requestMatchers("/api/reg").permitAll()
 
                 .requestMatchers("/auth/login").permitAll()
+                
+                .requestMatchers("/api/vitals/**").permitAll()
+                
+                .requestMatchers("/api/patients").permitAll()
+                
+                .requestMatchers("/api/medications/**").permitAll()
+
+                .requestMatchers("/api/patients/*/medications").permitAll()
+                
+                .requestMatchers("/api/labrecords/**").permitAll()
+                
+                .requestMatchers(
+                        "/api/conditions/**",
+                        "/api/condition/**"
+                    ).permitAll()
+                .requestMatchers("/api/auditlog/**").permitAll()
+                
 
                 .anyRequest().authenticated()
             )

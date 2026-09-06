@@ -1,7 +1,10 @@
 package healthcare.Entity;
 
 import org.springframework.data.annotation.Id;
+
 import org.springframework.data.mongodb.core.mapping.Document;
+
+
 
 
 @Document(collection = "patients")
@@ -44,6 +47,7 @@ import org.springframework.data.mongodb.core.mapping.Document;
 			this.id = id;
 		}
 
-	    // getters and setters
+		
+		
 	}
 

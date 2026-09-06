@@ -10,5 +10,7 @@ public interface MedicationRepo
         extends MongoRepository<PatientMedications, String> {
 
     List<PatientMedications> findByPatientId(String patientId);
+    
+    PatientMedications findByMedicationRequestId(String medicationRequestId);
 
 }

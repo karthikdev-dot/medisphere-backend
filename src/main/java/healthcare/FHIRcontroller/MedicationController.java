@@ -13,7 +13,7 @@ import healthcare.FHIRService.PatientMedicationService;
 
 
 @RestController
-@RequestMapping
+@RequestMapping("/api")
 public class MedicationController {
 
 	

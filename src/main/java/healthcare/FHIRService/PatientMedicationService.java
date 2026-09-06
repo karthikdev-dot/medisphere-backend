@@ -1,4 +1,3 @@
-
 package healthcare.FHIRService;
 
 import java.util.ArrayList;
@@ -23,89 +22,246 @@ public class PatientMedicationService {
     private MedicationRepo medicationRepo;
 
 
-    // GET ALL MEDICATION REQUESTS
+    // =====================================================
+    // GET MEDICATIONS FROM FHIR
+    // =====================================================
     public List<PatientMedications> getAllMedications() {
 
-        List<PatientMedications> medications = new ArrayList<>();
+        List<PatientMedications> medications =
+                new ArrayList<>();
 
+        // Maximum medication records to import
+        int maxMedications = 100;
+
+        // First FHIR page
         Bundle bundle = fhirClient
                 .search()
                 .forResource(MedicationRequest.class)
                 .returnBundle(Bundle.class)
                 .execute();
 
-        System.out.println("Medication entries = " + bundle.getEntry().size());
+        int pageNumber = 1;
 
-        for (Bundle.BundleEntryComponent entry : bundle.getEntry()) {
-
-            MedicationRequest request =
-                    (MedicationRequest) entry.getResource();
-
-            PatientMedications medication =
-                    convertToMedication(request);
-
-            medicationRepo.save(medication);
-
-            medications.add(medication);
+        while (bundle != null
+                && medications.size() < maxMedications) {
 
             System.out.println(
-                    "MedicationRequest ID = "
-                    + medication.getMedicationRequestId()
+                    "========== MEDICATION PAGE "
+                    + pageNumber
+                    + " =========="
             );
+
+            System.out.println(
+                    "Medication entries = "
+                    + bundle.getEntry().size()
+            );
+
+
+            // =====================================================
+            // READ CURRENT PAGE
+            // =====================================================
+            for (Bundle.BundleEntryComponent entry
+                    : bundle.getEntry()) {
+
+                // Stop after 100 medication records
+                if (medications.size() >= maxMedications) {
+                    break;
+                }
+
+
+                MedicationRequest request =
+                        (MedicationRequest)
+                                entry.getResource();
+
+
+                // Convert FHIR → MongoDB
+                PatientMedications medication =
+                        convertToMedication(request);
+
+
+                // Make sure MedicationRequest has a patient
+                if (medication.getPatientId() == null
+                        || medication.getPatientId().isEmpty()) {
+
+                    System.out.println(
+                            "Skipping medication without patient"
+                    );
+
+                    continue;
+                }
+
+
+                // =====================================================
+                // CHECK DUPLICATE
+                // =====================================================
+
+                // If your MedicationRepo has this method,
+                // use it to prevent duplicate MedicationRequests.
+                PatientMedications existing =
+                        medicationRepo
+                                .findByMedicationRequestId(
+                                        medication
+                                                .getMedicationRequestId()
+                                );
+
+
+                if (existing == null) {
+
+                    medicationRepo.save(medication);
+
+                    medications.add(medication);
+
+                    System.out.println(
+                            "Saved MedicationRequest = "
+                            + medication
+                                    .getMedicationRequestId()
+                    );
+
+                    System.out.println(
+                            "Patient FHIR ID = "
+                            + medication.getPatientId()
+                    );
+
+                    System.out.println(
+                            "Medication = "
+                            + medication.getMedicationName()
+                    );
+
+                } else {
+
+                    System.out.println(
+                            "Already exists = "
+                            + medication
+                                    .getMedicationRequestId()
+                    );
+                }
+            }
+
+
+            // =====================================================
+            // STOP IF 100 MEDICATIONS
+            // =====================================================
+            if (medications.size() >= maxMedications) {
+                break;
+            }
+
+
+            // =====================================================
+            // LOAD NEXT FHIR PAGE
+            // =====================================================
+            if (bundle.getLink(Bundle.LINK_NEXT) != null) {
+
+                String nextUrl =
+                        bundle
+                                .getLink(Bundle.LINK_NEXT)
+                                .getUrl();
+
+                System.out.println(
+                        "Loading next medication page..."
+                );
+
+                bundle = fhirClient
+                        .loadPage()
+                        .byUrl(nextUrl)
+                        .andReturnBundle(Bundle.class)
+                        .execute();
+
+                pageNumber++;
+
+            } else {
+
+                bundle = null;
+
+                System.out.println(
+                        "========== NO MORE MEDICATION PAGES =========="
+                );
+            }
         }
+
+
+        System.out.println(
+                "======================================"
+        );
+
+        System.out.println(
+                "MEDICATIONS SAVED = "
+                + medications.size()
+        );
+
+        System.out.println(
+                "======================================"
+        );
 
         return medications;
     }
 
 
+    // =====================================================
     // GET MEDICATIONS FOR ONE PATIENT
+    // =====================================================
     public List<PatientMedications> getMedicationsByPatientId(
             String patientId) {
 
-        List<PatientMedications> medications = new ArrayList<>();
+        List<PatientMedications> medications =
+                new ArrayList<>();
 
         Bundle bundle = fhirClient
                 .search()
                 .forResource(MedicationRequest.class)
                 .where(
-                    MedicationRequest.SUBJECT.hasId(patientId)
+                        MedicationRequest.SUBJECT.hasId(
+                                patientId
+                        )
                 )
                 .returnBundle(Bundle.class)
                 .execute();
+
 
         System.out.println(
                 "Medication entries for patient = "
                 + bundle.getEntry().size()
         );
 
-        for (Bundle.BundleEntryComponent entry : bundle.getEntry()) {
+
+        for (Bundle.BundleEntryComponent entry
+                : bundle.getEntry()) {
 
             MedicationRequest request =
-                    (MedicationRequest) entry.getResource();
+                    (MedicationRequest)
+                            entry.getResource();
+
 
             PatientMedications medication =
                     convertToMedication(request);
+
 
             medicationRepo.save(medication);
 
             medications.add(medication);
         }
 
+
         return medications;
     }
 
 
-    // GET ONE MEDICATION REQUEST BY ID
-    public PatientMedications getMedicationById(String id) {
+    // =====================================================
+    // GET ONE MEDICATION REQUEST
+    // =====================================================
+    public PatientMedications getMedicationById(
+            String id) {
 
-        MedicationRequest request = fhirClient
-                .read()
-                .resource(MedicationRequest.class)
-                .withId(id)
-                .execute();
+        MedicationRequest request =
+                fhirClient
+                        .read()
+                        .resource(MedicationRequest.class)
+                        .withId(id)
+                        .execute();
+
 
         PatientMedications medication =
                 convertToMedication(request);
+
 
         medicationRepo.save(medication);
 
@@ -113,7 +269,9 @@ public class PatientMedicationService {
     }
 
 
-    // CONVERT FHIR MedicationRequest → MongoDB MODEL
+    // =====================================================
+    // CONVERT FHIR MEDICATIONREQUEST → MONGODB
+    // =====================================================
     private PatientMedications convertToMedication(
             MedicationRequest request) {
 
@@ -121,133 +279,180 @@ public class PatientMedicationService {
                 new PatientMedications();
 
 
+        // =====================================================
         // MedicationRequest ID
+        // =====================================================
         medication.setMedicationRequestId(
-                request.getIdElement().getIdPart()
+                request
+                        .getIdElement()
+                        .getIdPart()
         );
 
 
-        // Patient ID
+        // =====================================================
+        // PATIENT FHIR ID
+        // =====================================================
         if (request.hasSubject()
                 && request.getSubject().hasReference()) {
 
             String reference =
-                    request.getSubject().getReference();
+                    request.getSubject()
+                            .getReference();
+
 
             if (reference.startsWith("Patient/")) {
 
                 reference =
-                        reference.substring("Patient/".length());
+                        reference.substring(
+                                "Patient/".length()
+                        );
             }
+
 
             medication.setPatientId(reference);
         }
 
 
-        // Status
+        // =====================================================
+        // STATUS
+        // =====================================================
         if (request.hasStatus()) {
 
             medication.setStatus(
-                    request.getStatus().toCode()
+                    request
+                            .getStatus()
+                            .toCode()
             );
         }
 
 
-        // Medication name
+        // =====================================================
+        // MEDICATION NAME
+        // =====================================================
         if (request.hasMedicationCodeableConcept()) {
 
-            if (request.getMedicationCodeableConcept()
+            if (request
+                    .getMedicationCodeableConcept()
                     .hasText()) {
 
                 medication.setMedicationName(
-                    request.getMedicationCodeableConcept()
-                            .getText()
+                        request
+                                .getMedicationCodeableConcept()
+                                .getText()
                 );
 
-            } else if (request.getMedicationCodeableConcept()
+            } else if (request
+                    .getMedicationCodeableConcept()
                     .hasCoding()) {
 
                 medication.setMedicationName(
-                    request.getMedicationCodeableConcept()
-                            .getCodingFirstRep()
-                            .getDisplay()
+                        request
+                                .getMedicationCodeableConcept()
+                                .getCodingFirstRep()
+                                .getDisplay()
                 );
             }
 
         } else if (request.hasMedicationReference()) {
 
             medication.setMedicationName(
-                request.getMedicationReference()
-                        .getDisplay()
+                    request
+                            .getMedicationReference()
+                            .getDisplay()
             );
         }
 
 
-        // Dosage
+        // =====================================================
+        // DOSAGE
+        // =====================================================
         if (request.hasDosageInstruction()) {
 
             var dosage =
-                    request.getDosageInstructionFirstRep();
+                    request
+                            .getDosageInstructionFirstRep();
+
 
             if (dosage.hasText()) {
 
                 medication.setDosage(
-                    dosage.getText()
+                        dosage.getText()
                 );
             }
 
 
-            // Frequency
+            // =================================================
+            // FREQUENCY
+            // =================================================
             if (dosage.hasTiming()
-                    && dosage.getTiming().hasRepeat()) {
+                    && dosage
+                            .getTiming()
+                            .hasRepeat()) {
 
                 var repeat =
-                        dosage.getTiming().getRepeat();
+                        dosage
+                                .getTiming()
+                                .getRepeat();
 
                 String frequency = "";
+
 
                 if (repeat.hasFrequency()) {
 
                     frequency =
-                        String.valueOf(
-                            repeat.getFrequency()
-                        );
+                            String.valueOf(
+                                    repeat.getFrequency()
+                            );
                 }
+
 
                 if (repeat.hasPeriod()) {
 
-                    frequency += " every "
+                    frequency +=
+                            " every "
                             + repeat.getPeriod();
                 }
 
+
                 if (repeat.hasPeriodUnit()) {
 
-                    frequency += " "
-                            + repeat.getPeriodUnit()
+                    frequency +=
+                            " "
+                            + repeat
+                                    .getPeriodUnit()
                                     .toCode();
                 }
 
-                medication.setFrequency(frequency);
+
+                medication.setFrequency(
+                        frequency
+                );
             }
 
 
-            // Route
+            // =================================================
+            // ROUTE
+            // =================================================
             if (dosage.hasRoute()) {
 
                 medication.setRoute(
-                    dosage.getRoute()
-                            .getText()
+                        dosage
+                                .getRoute()
+                                .getText()
                 );
             }
         }
 
 
-        // Authored date
+        // =====================================================
+        // AUTHORED DATE
+        // =====================================================
         if (request.hasAuthoredOn()) {
 
             medication.setAuthoredOn(
-                request.getAuthoredOnElement()
-                        .getValueAsString()
+                    request
+                            .getAuthoredOnElement()
+                            .getValueAsString()
             );
         }
 

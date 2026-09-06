@@ -1,7 +1,9 @@
 package healthcare.FHIRService;
 
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
 
 import org.hl7.fhir.r4.model.Bundle;
 import org.hl7.fhir.r4.model.Observation;
@@ -24,237 +26,391 @@ public class LabRecordService {
 
 
     // =====================================================
-    // FETCH LAB RECORDS FROM FHIR AND SAVE TO MONGODB
+    // FETCH LAB RECORDS FROM FHIR
+    // CHECK MAXIMUM 3 PAGES
+    // STOP AFTER 100 UNIQUE PATIENTS
     // =====================================================
 
     public List<Labrecords> fetchAndSaveLabRecords() {
 
+        List<Labrecords> labRecords = new ArrayList<>();
+
+        // Store UNIQUE patient IDs
+        Set<String> patientIds = new HashSet<>();
+
+        // =====================================================
+        // FIRST PAGE
+        // =====================================================
+
         Bundle bundle = fhirClient
                 .search()
                 .forResource(Observation.class)
-                .count(50)
+                .count(100)
                 .returnBundle(Bundle.class)
                 .execute();
 
+        // Maximum 3 pages
+        int pageCount = 0;
 
-        List<Labrecords> labRecords = new ArrayList<>();
+        // =====================================================
+        // PROCESS PAGES
+        // =====================================================
 
+        while (bundle != null
+                && patientIds.size() < 100
+                && pageCount < 3) {
 
-        for (Bundle.BundleEntryComponent entry : bundle.getEntry()) {
+            pageCount++;
 
-            Observation observation =
-                    (Observation) entry.getResource();
+            System.out.println(
+                    "===================================="
+            );
+
+            System.out.println(
+                    "Checking FHIR Page = " + pageCount
+            );
+
+            System.out.println(
+                    "Observation records = "
+                            + bundle.getEntry().size()
+            );
+
+            System.out.println(
+                    "===================================="
+            );
 
 
             // =====================================================
-            // TEST NAME
+            // PROCESS OBSERVATIONS
             // =====================================================
 
-            String testName = null;
+            for (Bundle.BundleEntryComponent entry
+                    : bundle.getEntry()) {
 
+                if (!(entry.getResource()
+                        instanceof Observation)) {
 
-            if (observation.hasCode()) {
-
-                if (observation.getCode().hasText()) {
-
-                    testName =
-                            observation.getCode().getText();
-
-                } else if (!observation.getCode()
-                        .getCoding()
-                        .isEmpty()) {
-
-                    testName =
-                            observation.getCode()
-                                    .getCodingFirstRep()
-                                    .getDisplay();
+                    continue;
                 }
-            }
+
+                Observation observation =
+                        (Observation) entry.getResource();
 
 
-            if (testName == null) {
-                continue;
-            }
+                // =====================================================
+                // PATIENT ID
+                // =====================================================
 
+                if (!observation.hasSubject()
+                        || !observation
+                                .getSubject()
+                                .hasReference()) {
 
-            // =====================================================
-            // FILTER
-            // ONLY HEMOGLOBIN, GLUCOSE, CHOLESTEROL
-            // =====================================================
-
-            String test =
-                    testName.toLowerCase();
-
-
-            if (!(test.contains("hemoglobin")
-                    || test.contains("glucose")
-                    || test.contains("cholesterol"))) {
-
-                continue;
-            }
-
-
-            // =====================================================
-            // CREATE LAB RECORD
-            // =====================================================
-
-            Labrecords lab =
-                    new Labrecords();
-
-
-            // =====================================================
-            // FHIR OBSERVATION ID
-            // =====================================================
-
-            if (observation.hasIdElement()) {
-
-                lab.setObservationId(
-                        observation
-                                .getIdElement()
-                                .getIdPart()
-                );
-            }
-
-
-            // =====================================================
-            // PATIENT ID
-            // =====================================================
-
-            if (observation.hasSubject()) {
+                    continue;
+                }
 
                 String patientReference =
                         observation
                                 .getSubject()
                                 .getReference();
 
+                if (patientReference == null
+                        || patientReference.isEmpty()) {
 
-                if (patientReference != null
-                        && patientReference.contains("/")) {
-
-                    String patientId =
-                            patientReference.substring(
-                                    patientReference.lastIndexOf("/") + 1
-                            );
-
-
-                    lab.setPatientId(patientId);
+                    continue;
                 }
-            }
+
+                String patientId =
+                        patientReference.substring(
+                                patientReference
+                                        .lastIndexOf("/") + 1
+                        );
+
+                if (patientId.isEmpty()) {
+                    continue;
+                }
 
 
-            // =====================================================
-            // TEST NAME
-            // =====================================================
+                // =====================================================
+                // TEST NAME
+                // =====================================================
 
-            lab.setTestName(testName);
+                String testName = null;
+
+                if (observation.hasCode()) {
+
+                    if (observation
+                            .getCode()
+                            .hasText()) {
+
+                        testName =
+                                observation
+                                        .getCode()
+                                        .getText();
+
+                    } else if (!observation
+                            .getCode()
+                            .getCoding()
+                            .isEmpty()) {
+
+                        testName =
+                                observation
+                                        .getCode()
+                                        .getCodingFirstRep()
+                                        .getDisplay();
+                    }
+                }
 
 
-            // =====================================================
-            // STATUS
-            // =====================================================
+                if (testName == null
+                        || testName.isBlank()) {
 
-            if (observation.hasStatus()) {
-
-                lab.setStatus(
-                        observation
-                                .getStatus()
-                                .toCode()
-                );
-            }
+                    continue;
+                }
 
 
-            // =====================================================
-            // VALUE AND UNIT
-            // =====================================================
+                // =====================================================
+                // FILTER
+                //
+                // CHOLESTEROL
+                // HEMOGLOBIN
+                // GLUCOSE
+                // HBA1C
+                // DIABETES
+                // =====================================================
 
-            if (observation.hasValueQuantity()) {
+                String test =
+                        testName.toLowerCase();
 
-                Quantity quantity =
-                        observation.getValueQuantity();
+                boolean isRequiredTest =
+                        test.contains("cholesterol")
+                        || test.contains("hemoglobin")
+                        || test.contains("haemoglobin")
+                        || test.contains("glucose")
+                        || test.contains("hba1c")
+                        || test.contains("a1c")
+                        || test.contains("diabetes");
 
 
-                if (quantity.hasValue()) {
+                if (!isRequiredTest) {
+                    continue;
+                }
 
-                    lab.setValue(
-                            quantity
-                                    .getValue()
-                                    .toPlainString()
+
+                // =====================================================
+                // ONLY 100 UNIQUE PATIENTS
+                // =====================================================
+
+                if (!patientIds.contains(patientId)
+                        && patientIds.size() >= 100) {
+
+                    break;
+                }
+
+                patientIds.add(patientId);
+
+
+                // =====================================================
+                // CREATE LAB RECORD
+                // =====================================================
+
+                Labrecords lab =
+                        new Labrecords();
+
+
+                // =====================================================
+                // OBSERVATION ID
+                // =====================================================
+
+                if (observation.hasIdElement()) {
+
+                    lab.setObservationId(
+                            observation
+                                    .getIdElement()
+                                    .getIdPart()
                     );
                 }
 
 
-                if (quantity.hasUnit()) {
+                // =====================================================
+                // PATIENT ID
+                // =====================================================
 
-                    lab.setUnit(
-                            quantity.getUnit()
+                lab.setPatientId(patientId);
+
+
+                // =====================================================
+                // TEST NAME
+                // =====================================================
+
+                lab.setTestName(testName);
+
+
+                // =====================================================
+                // STATUS
+                // =====================================================
+
+                if (observation.hasStatus()) {
+
+                    lab.setStatus(
+                            observation
+                                    .getStatus()
+                                    .toCode()
                     );
                 }
-            }
 
 
-            // =====================================================
-            // REFERENCE RANGE
-            // =====================================================
+                // =====================================================
+                // VALUE AND UNIT
+                // =====================================================
 
-            if (observation.hasReferenceRange()) {
+                if (observation.hasValueQuantity()) {
 
-                Observation.ObservationReferenceRangeComponent range =
-                        observation
-                                .getReferenceRangeFirstRep();
+                    Quantity quantity =
+                            observation
+                                    .getValueQuantity();
 
+                    if (quantity.hasValue()) {
 
-                String referenceRange = "";
+                        lab.setValue(
+                                quantity
+                                        .getValue()
+                                        .toPlainString()
+                        );
+                    }
 
+                    if (quantity.hasUnit()) {
 
-                if (range.hasLow()
-                        && range.getLow().hasValue()) {
-
-                    referenceRange =
-                            range.getLow()
-                                    .getValue()
-                                    .toPlainString();
+                        lab.setUnit(
+                                quantity.getUnit()
+                        );
+                    }
                 }
 
 
-                if (range.hasHigh()
-                        && range.getHigh().hasValue()) {
+                // =====================================================
+                // REFERENCE RANGE
+                // =====================================================
 
-                    if (!referenceRange.isEmpty()) {
+                if (observation.hasReferenceRange()) {
 
-                        referenceRange += " - ";
+                    Observation
+                            .ObservationReferenceRangeComponent range =
+                            observation
+                                    .getReferenceRangeFirstRep();
+
+                    String referenceRange = "";
+
+
+                    if (range.hasLow()
+                            && range.getLow()
+                                    .hasValue()) {
+
+                        referenceRange =
+                                range.getLow()
+                                        .getValue()
+                                        .toPlainString();
                     }
 
 
-                    referenceRange +=
-                            range.getHigh()
-                                    .getValue()
-                                    .toPlainString();
+                    if (range.hasHigh()
+                            && range.getHigh()
+                                    .hasValue()) {
+
+                        if (!referenceRange.isEmpty()) {
+
+                            referenceRange += " - ";
+                        }
+
+                        referenceRange +=
+                                range.getHigh()
+                                        .getValue()
+                                        .toPlainString();
+                    }
+
+
+                    lab.setReferenceRange(
+                            referenceRange
+                    );
                 }
 
 
-                lab.setReferenceRange(
-                        referenceRange
+                // =====================================================
+                // EFFECTIVE DATE
+                // =====================================================
+
+                if (observation
+                        .hasEffectiveDateTimeType()) {
+
+                    lab.setEffectiveDate(
+                            observation
+                                    .getEffectiveDateTimeType()
+                                    .getValueAsString()
+                    );
+                }
+
+
+                // =====================================================
+                // ADD RECORD
+                // =====================================================
+
+                labRecords.add(lab);
+
+
+                System.out.println(
+                        "Patient = "
+                                + patientId
+                                + " | Test = "
+                                + testName
                 );
             }
 
 
             // =====================================================
-            // EFFECTIVE DATE
+            // STOP IF 100 PATIENTS FOUND
             // =====================================================
 
-            if (observation
-                    .hasEffectiveDateTimeType()) {
+            if (patientIds.size() >= 100) {
 
-                lab.setEffectiveDate(
-                        observation
-                                .getEffectiveDateTimeType()
-                                .getValueAsString()
+                System.out.println(
+                        "100 unique patients found."
                 );
+
+                break;
             }
 
 
-            // Add to list
-            labRecords.add(lab);
+            // =====================================================
+            // GO TO NEXT PAGE
+            // MAXIMUM 3 PAGES
+            // =====================================================
+
+            if (pageCount < 3
+                    && bundle.getLink(
+                            Bundle.LINK_NEXT) != null) {
+
+                String nextUrl =
+                        bundle
+                                .getLink(
+                                        Bundle.LINK_NEXT)
+                                .getUrl();
+
+                bundle =
+                        fhirClient
+                                .loadPage()
+                                .byUrl(nextUrl)
+                                .andReturnBundle(
+                                        Bundle.class)
+                                .execute();
+
+            } else {
+
+                System.out.println(
+                        "Reached maximum of 3 pages."
+                );
+
+                break;
+            }
         }
 
 
@@ -269,41 +425,37 @@ public class LabRecordService {
             );
 
             System.out.println(
-                    "Saved lab records = "
+                    "===================================="
+            );
+
+            System.out.println(
+                    "Pages checked = "
+                            + pageCount
+            );
+
+            System.out.println(
+                    "Unique patients = "
+                            + patientIds.size()
+            );
+
+            System.out.println(
+                    "Lab records saved = "
                             + labRecords.size()
+            );
+
+            System.out.println(
+                    "===================================="
             );
 
         } else {
 
             System.out.println(
-                    "No Hemoglobin, Glucose or Cholesterol records found"
+                    "No cholesterol, hemoglobin "
+                    + "or diabetes-related records found."
             );
         }
 
 
-        // Return data to controller
         return labRecords;
-    }
-
-
-    // =====================================================
-    // GET ALL LAB RECORDS FROM MONGODB
-    // =====================================================
-
-    public List<Labrecords> getAllLabRecords() {
-
-        return labRecordRepository.findAll();
-    }
-
-
-    // =====================================================
-    // GET LAB RECORD BY MONGODB ID
-    // =====================================================
-
-    public Labrecords getLabRecordById(String id) {
-
-        return labRecordRepository
-                .findById(id)
-                .orElse(null);
     }
 }
