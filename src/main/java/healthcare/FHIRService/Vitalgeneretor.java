@@ -19,10 +19,8 @@ package healthcare.FHIRService;
 
 	        VitalSigns vitals = new VitalSigns();
 
-	        vitals.setHeartRate(
-	                random.nextInt(21) + 60
-	        );
-
+	        vitals.setHeartRate(145);
+	        
 	        vitals.setSpo2(
 	                random.nextInt(4) + 96
 	        );

@@ -58,6 +58,7 @@ public class SecurityConfig {
                 .requestMatchers("/api/auditlog/**").permitAll()
                 .requestMatchers("/api/ml/**").permitAll()
                 .requestMatchers("/api/cvd/**").permitAll()
+                .requestMatchers("/api/alerts/**").permitAll()
                 
 
                 .anyRequest().authenticated()
