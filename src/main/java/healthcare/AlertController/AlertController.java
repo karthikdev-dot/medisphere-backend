@@ -3,9 +3,11 @@ package healthcare.AlertController;
 
 
 import org.springframework.beans.factory.annotation.Autowired;
+
 import org.springframework.web.bind.annotation.*;
 
 import healthcare.Alert.AlertEntity;
+import healthcare.AlertMetric.AlertMetric;
 import healthcare.AlertService.AlertService;
 
 import java.util.List;
@@ -54,6 +56,28 @@ public class AlertController {
         return alertService.acknowledgeAlert(
                 alertId,
                 acknowledgedBy
+                
         );
+    }
+        
+        @PutMapping("/{alertId}/classify")
+        public AlertEntity classifyAlert(
+                @PathVariable String alertId,
+                @RequestParam String classification,
+                @RequestParam String classifiedBy) {
+
+            return alertService.classifyAlert(
+                    alertId,
+                    classification,
+                    classifiedBy
+            );
+        }
+            
+            @GetMapping("/metrics/precision")
+            public AlertMetric getAlertMetrics() {
+
+                return alertService.getAlertMetrics();
+            
+        
     }
 }

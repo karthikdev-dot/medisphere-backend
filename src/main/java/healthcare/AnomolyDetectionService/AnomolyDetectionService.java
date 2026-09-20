@@ -5,6 +5,8 @@ import org.springframework.stereotype.Service;
 
 import healthcare.Alert.AlertEntity;
 import healthcare.AlertRepo.AlertRepo;
+import healthcare.FHIRService.AlertRoutingService;
+import healthcare.FHIRService.NotificationService;
 import healthcare.Vitalsigns.VitalSigns;
 
 import java.time.LocalDateTime;
@@ -15,6 +17,12 @@ public class AnomolyDetectionService {
 
 	@Autowired
 	private AlertRepo alertRepo;
+	
+	@Autowired
+	private AlertRoutingService alertRoutingService;
+	
+	@Autowired
+	private NotificationService notificationService;
 
 	public void checkVitals(VitalSigns vitals) {
 
@@ -103,8 +111,21 @@ public class AnomolyDetectionService {
 
 		alert.setCreatedAt(LocalDateTime.now());
 
-		alertRepo.save(alert);
+		AlertEntity savedAlert = alertRepo.save(alert);
 
-		System.out.println("ALERT CREATED: " + patientId + " | " + alertType + " | " + severity);
+		System.out.println(
+		        "ALERT CREATED: "
+		                + patientId
+		                + " | "
+		                + alertType
+		                + " | "
+		                + severity
+		);
+
+		// Route alert
+		alertRoutingService.routeAlert(savedAlert);
+
+		// Create and send notification
+		notificationService.sendAlertNotification(savedAlert);
 	}
 }

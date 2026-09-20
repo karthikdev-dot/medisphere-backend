@@ -22,4 +22,6 @@ public interface AlertRepo extends MongoRepository<AlertEntity, String> {
 	        String alertType,
 	        String status
 	);
+	
+	long countByClassification(String classification);
 }

@@ -1,6 +1,7 @@
 package healthcare.AlertService;
 
 import healthcare.Alert.AlertEntity;
+import healthcare.AlertMetric.AlertMetric;
 import healthcare.AlertRepo.AlertRepo;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
@@ -91,6 +92,86 @@ public class AlertService {
 
 
         return alertRepo.save(alert);
+    }
+        
+     // ==========================================
+     // CLASSIFY ALERT
+     // ==========================================
+
+     public AlertEntity classifyAlert(
+             String alertId,
+             String classification,
+             String classifiedBy) {
+
+         AlertEntity alert = alertRepo
+                 .findById(alertId)
+                 .orElseThrow(() ->
+                         new RuntimeException(
+                                 "Alert not found"
+                         )
+                 );
+
+         if (!classification.equals("VALID")
+                 && !classification.equals("FALSE_POSITIVE")) {
+
+             throw new RuntimeException(
+                     "Classification must be VALID or FALSE_POSITIVE"
+             );
+         }
+
+         alert.setClassification(classification);
+
+         alert.setClassifiedBy(
+                 classifiedBy
+         );
+
+         alert.setClassifiedAt(
+                 LocalDateTime.now()
+         );
+
+         return alertRepo.save(alert);
+     }
+     
+        
+         public AlertMetric getAlertMetrics() {
+
+        	    long validAlerts =
+        	            alertRepo.countByClassification("VALID");
+
+        	    long falsePositiveAlerts =
+        	            alertRepo.countByClassification("FALSE_POSITIVE");
+
+        	    long totalClassifiedAlerts =
+        	            validAlerts + falsePositiveAlerts;
+
+        	    double precision = 0.0;
+
+        	    if (totalClassifiedAlerts > 0) {
+        	        precision =
+        	                ((double) validAlerts / totalClassifiedAlerts) * 100;
+        	    }
+
+        	    AlertMetric metrics = new AlertMetric();
+
+        	    metrics.setTotalClassifiedAlerts(
+        	            totalClassifiedAlerts
+        	    );
+
+        	    metrics.setValidAlerts(
+        	            validAlerts
+        	    );
+
+        	    metrics.setFalsePositiveAlerts(
+        	            falsePositiveAlerts
+        	    );
+
+        	    metrics.setPrecision(
+        	            precision
+        	    );
+
+        	    return metrics;
+        	
+        
     }
 }
 

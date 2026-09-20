@@ -1,4 +1,4 @@
-package healthcare.Alert;
+package healthcare.Entity;
 
 
 
@@ -7,51 +7,38 @@ package healthcare.Alert;
 
 	import java.time.LocalDateTime;
 
-	@Document(collection = "alerts")
-	public class AlertEntity {
+	@Document(collection = "notifications")
+	public class NotificationEntity {
 
 	    @Id
 	    private String id;
 
 	    private String patientId;
+	    private String alertId;
 	    private String alertType;
 	    private String message;
 	    private String severity;
+
+	    private String recipient;
 	    private String status;
 
 	    private LocalDateTime createdAt;
-
-	    private String acknowledgedBy;
-	    private LocalDateTime acknowledgedAt;
-	    private String classification;
-		private LocalDateTime classifiedAt;
-	    private String classifiedBy;
+	    private LocalDateTime readAt;
 	    
-	    public String getClassification() {
-			return classification;
-		}
+	    public NotificationEntity(
+	            String patientId,
+	            String alertType,
+	            String message,
+	            String severity) {
 
-		public void setClassification(String classification) {
-			this.classification = classification;
-		}
+	        this.patientId = patientId;
+	        this.alertType = alertType;
+	        this.message = message;
+	        this.severity = severity;
+	    }
 
-		public LocalDateTime getClassifiedAt() {
-			return classifiedAt;
-		}
-
-		public void setClassifiedAt(LocalDateTime classifiedAt) {
-			this.classifiedAt = classifiedAt;
-		}
-
-		public String getClassifiedBy() {
-			return classifiedBy;
-		}
-
-		public void setClassifiedBy(String classifiedBy) {
-			this.classifiedBy = classifiedBy;
-		}
-
-	
+	    public NotificationEntity() {
+	    }
 
 	    public String getId() {
 	        return id;
@@ -67,6 +54,14 @@ package healthcare.Alert;
 
 	    public void setPatientId(String patientId) {
 	        this.patientId = patientId;
+	    }
+
+	    public String getAlertId() {
+	        return alertId;
+	    }
+
+	    public void setAlertId(String alertId) {
+	        this.alertId = alertId;
 	    }
 
 	    public String getAlertType() {
@@ -93,6 +88,14 @@ package healthcare.Alert;
 	        this.severity = severity;
 	    }
 
+	    public String getRecipient() {
+	        return recipient;
+	    }
+
+	    public void setRecipient(String recipient) {
+	        this.recipient = recipient;
+	    }
+
 	    public String getStatus() {
 	        return status;
 	    }
@@ -109,20 +112,12 @@ package healthcare.Alert;
 	        this.createdAt = createdAt;
 	    }
 
-	    public String getAcknowledgedBy() {
-	        return acknowledgedBy;
+	    public LocalDateTime getReadAt() {
+	        return readAt;
 	    }
 
-	    public void setAcknowledgedBy(String acknowledgedBy) {
-	        this.acknowledgedBy = acknowledgedBy;
-	    }
-
-	    public LocalDateTime getAcknowledgedAt() {
-	        return acknowledgedAt;
-	    }
-
-	    public void setAcknowledgedAt(LocalDateTime acknowledgedAt) {
-	        this.acknowledgedAt = acknowledgedAt;
+	    public void setReadAt(LocalDateTime readAt) {
+	        this.readAt = readAt;
 	    }
 	}
 
